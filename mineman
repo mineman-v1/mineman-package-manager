@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests
 import json
 import os
@@ -5,7 +7,7 @@ import argparse
 import glob  # Import the glob module
 
 # Define the path to the sources.mineman file
-SOURCES_FILE = 'sources.mineman'
+SOURCES_FILE = '/usr/local/bin/sources.mineman'
 INSTALL_DIR = './plugins'  # Define where to install the plugins
 
 # Function to read the sources from the sources.mineman file
