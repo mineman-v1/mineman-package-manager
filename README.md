@@ -1,1 +1,7 @@
-test
+![mineman-v1/mineman-package-manager]([https://i.imgur.com/XUY6rz9.png](https://i.imgur.com/zniLNVj.png))
+![License](https://img.shields.io/github/license/mineman-v1/mineman-package-manager)
+![GitHub stars](https://img.shields.io/github/stars/mineman-v1/mineman-package-manager?style=social)
+![GitHub forks](https://img.shields.io/github/forks/mineman-v1/mineman-package-manager?style=social)
+![GitHub issues](https://img.shields.io/github/issues/mineman-v1/mineman-package-manager)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/mineman-v1/mineman-package-manager)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/mineman-v1/mineman-package-manager)
