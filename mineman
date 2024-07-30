@@ -1,0 +1,158 @@
+import requests
+import json
+import os
+import argparse
+import glob  # Import the glob module
+
+# Define the path to the sources.mineman file
+SOURCES_FILE = 'sources.mineman'
+INSTALL_DIR = './plugins'  # Define where to install the plugins
+
+# Function to read the sources from the sources.mineman file
+def read_sources():
+    try:
+        with open(SOURCES_FILE, 'r') as f:
+            sources = f.read().splitlines()
+        return sources
+    except FileNotFoundError:
+        print(f"File {SOURCES_FILE} not found.")
+        return []
+
+# Function to fetch the repo_manifest.json from a given URL
+def fetch_repo_manifest(source_url):
+    try:
+        response = requests.get(os.path.join(source_url, 'repo_manifest.json'))
+        response.raise_for_status()  # Raise an HTTPError for bad responses
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching repo manifest from {source_url}: {e}")
+        return None
+
+# Function to install a plugin
+def install_plugin(plugin_name, version=None):
+    sources = read_sources()
+    if not sources:
+        print("No sources found.")
+        return
+
+    for source in sources:
+        rawsource = f'https://raw.githubusercontent.com/{source}/main/'
+        print(f"Checking {rawsource} for plugin {plugin_name}...")
+        repo_manifest = fetch_repo_manifest(rawsource)
+        if repo_manifest:
+            plugins = repo_manifest.get('plugins', [])
+            for plugin in plugins:
+                if plugin.get('name') == plugin_name and (not version or plugin.get('version') == version):
+                    author = plugin.get('author')
+                    plugin_version = plugin.get('version')
+                    jar_filename = f"{plugin_name}-{plugin_version}.jar"
+                    jar_url = f"https://github.com/{source}/raw/main/packages/{author}/{plugin_name}/{jar_filename}"
+                    
+                    print(f"Downloading {plugin_name} version {plugin_version} from {jar_url}...")
+                    
+                    # Make sure the install directory exists
+                    os.makedirs(INSTALL_DIR, exist_ok=True)
+                    
+                    # Path where the plugin jar will be saved
+                    jar_path = os.path.join(INSTALL_DIR, jar_filename)
+                    
+                    try:
+                        # Download the jar file
+                        with requests.get(jar_url, stream=True) as r:
+                            r.raise_for_status()
+                            with open(jar_path, 'wb') as f:
+                                for chunk in r.iter_content(chunk_size=8192):
+                                    f.write(chunk)
+                        print(f"Installed {plugin_name} version {plugin_version} to {jar_path}")
+                        return  # Exit after successful installation
+                    except requests.exceptions.RequestException as e:
+                        print(f"Failed to download {plugin_name}: {e}")
+    print(f"Plugin {plugin_name} not found in any sources or the specified version is not available.")
+
+# Function to uninstall a plugin
+def uninstall_plugin(plugin_name, version=None):
+    if not os.path.exists(INSTALL_DIR):
+        print("No plugins are currently installed.")
+        return
+
+    # Construct the expected filename pattern
+    if version:
+        jar_filename_pattern = f"{plugin_name}-{version}.jar"
+    else:
+        # Remove all versions if no specific version is specified
+        jar_filename_pattern = f"{plugin_name}-*.jar"
+
+    # Path pattern to the plugin jar file(s)
+    plugin_path_pattern = os.path.join(INSTALL_DIR, jar_filename_pattern)
+
+    # Find and remove matching files
+    removed = False
+    for jar_file in glob.glob(plugin_path_pattern):
+        try:
+            os.remove(jar_file)
+            print(f"Removed {jar_file}")
+            removed = True
+        except OSError as e:
+            print(f"Error removing {jar_file}: {e}")
+
+    if not removed:
+        print(f"Plugin {plugin_name} not found or no versions match the criteria.")
+
+# Function to check sources and display the manifest information
+def check_sources():
+    sources = read_sources()
+    if not sources:
+        print("No sources found.")
+        return
+
+    for source in sources:
+        rawsource = f'https://raw.githubusercontent.com/{source}/main/'
+        print(f"Fetching repo manifest from: {rawsource}")
+        repo_manifest = fetch_repo_manifest(rawsource)
+        if repo_manifest:
+            print(f"Repository: {repo_manifest.get('repository', 'Unknown')}")
+            print(f"Description: {repo_manifest.get('description', 'No description available.')}")
+
+            plugins = repo_manifest.get('plugins', [])
+            if plugins:
+                print("Available plugins:")
+                for plugin in plugins:
+                    name = plugin.get('name', 'Unknown')
+                    author = plugin.get('author', 'Unknown')
+                    version = plugin.get('version', 'Unknown')
+                    minecraft_version = plugin.get('minecraft_version', 'Unknown')
+                    description = plugin.get('description', 'No description available.')
+                    print(f" - Name: {name}")
+                    print(f"   Author: {author}")
+                    print(f"   Version: {version}")
+                    print(f"   Minecraft Version: {minecraft_version}")
+                    print(f"   Description: {description}")
+                    print()
+            else:
+                print("No plugins listed in this manifest.")
+        else:
+            print(f"Failed to fetch or parse the manifest from {source}")
+
+# Main function to handle command line arguments
+def main():
+    parser = argparse.ArgumentParser(description='Mineman Package Manager')
+    parser.add_argument('command', choices=['checksources', 'install', 'uninstall'], help='Command to run')
+    parser.add_argument('plugin', nargs='?', help='The name of the plugin (required for install/uninstall commands)')
+    parser.add_argument('-v', '--version', help='The version of the plugin (optional)')
+    args = parser.parse_args()
+
+    if args.command == 'checksources':
+        check_sources()
+    elif args.command == 'install':
+        if not args.plugin:
+            print("Please provide the name of the plugin to install.")
+        else:
+            install_plugin(args.plugin, args.version)
+    elif args.command == 'uninstall':
+        if not args.plugin:
+            print("Please provide the name of the plugin to uninstall.")
+        else:
+            uninstall_plugin(args.plugin, args.version)
+
+if __name__ == "__main__":
+    main()
